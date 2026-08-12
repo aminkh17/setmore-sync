@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.setmore-sync</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/YOUR_USERNAME/Sources/bysun/workflow/setmore-sync/.venv/bin/setmore-sync</string>
+        <string>--config</string>
+        <string>/Users/YOUR_USERNAME/Sources/bysun/workflow/setmore-sync/config.yaml</string>
+        <string>run</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SETMORE_REFRESH_TOKEN</key>
+        <string>r1/your-refresh-token</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/YOUR_USERNAME/Sources/bysun/workflow/setmore-sync</string>
+
+    <key>StartInterval</key>
+    <integer>1800</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/YOUR_USERNAME/.setmore-sync/sync.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/YOUR_USERNAME/.setmore-sync/sync.err.log</string>
+</dict>
+</plist>

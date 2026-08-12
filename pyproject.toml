@@ -1,0 +1,22 @@
+[project]
+name = "setmore-sync"
+version = "0.1.0"
+description = "Sync Setmore customers to Google Contacts"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31",
+    "google-auth>=2.29",
+    "google-auth-oauthlib>=1.2",
+    "PyYAML>=6.0",
+]
+
+[project.scripts]
+setmore-sync = "setmore_sync.cli:_entrypoint"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["setmore_sync*"]

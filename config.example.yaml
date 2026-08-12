@@ -1,0 +1,22 @@
+# Setmore sync configuration.
+# Values in this file can be overridden by environment variables (they take precedence).
+
+setmore:
+  # Your permanent refresh token from the Setmore API access email.
+  # Prefer the SETMORE_REFRESH_TOKEN environment variable instead of storing it here.
+  refresh_token: ""
+
+google:
+  # JSON credentials file downloaded from Google Cloud Console
+  # (OAuth client ID of type "Desktop app" / "installed application").
+  client_secret_file: "creds/client_secret.json"
+
+sync:
+  # Put new/updated contacts into a Google contact group with this name.
+  use_contact_group: true
+  contact_group_name: "Setmore"
+  # Date (dd-mm-yyyy window start) used only on the very first run to backfill
+  # all historical customers from appointments.
+  history_start: "01-01-2015"
+  # On incremental runs, look back this many days for new/updated customers.
+  lookback_days: 7
