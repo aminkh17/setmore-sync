@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "setmore-sync",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  // Backup schedule; the email trigger handles new bookings straight away.
+  "triggers": { "crons": ["*/30 * * * *"] },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "setmore-sync",
+      "database_id": "<your-d1-database-id>",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "USE_CONTACT_GROUP": "true",
+    "CONTACT_GROUP_NAME": "Setmore",
+    "HISTORY_START": "01-01-2015",
+    "LOOKBACK_DAYS": "7"
+  }
+  // Secrets (wrangler secret put / bulk):
+  //   SETMORE_REFRESH_TOKEN, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+  //   GOOGLE_REFRESH_TOKEN, SYNC_TOKEN
+}

@@ -1,9 +1,16 @@
 # setmore-sync
 
-Local app that syncs your **Setmore customers → Google Contacts** using the
-**official Setmore developer API** (Option C from the research notes). Fully
-standalone — it talks only to Setmore and Google directly, no third-party
-automation service. Runs on your Mac via `launchd`.
+Syncs your **Setmore customers → Google Contacts** (one way) using the
+**official Setmore developer API** and the Google People API. It talks only to
+Setmore and Google directly, with no third-party automation service.
+
+It runs in two places that share the same logic:
+
+- **Cloudflare Worker** (`worker/`, the main deployment): runs automatically
+  every 30 minutes and whenever a Setmore booking email reaches a dedicated
+  address on your domain. See [Cloudflare Worker](#cloudflare-worker).
+- **Python CLI** (`setmore_sync/`): for one-time Google sign-in, local
+  inspection and debugging.
 
 ## Prerequisites
 
@@ -129,8 +136,94 @@ scope. A token is saved to `~/.setmore-sync/google_token.json`.
 .venv/bin/setmore-sync status
 ```
 
-## Schedule it (launchd)
+## Cloudflare Worker
 
+`worker/` is a TypeScript port of the sync, deployed as the `setmore-sync`
+Worker. It runs on three triggers:
+
+| Trigger | When |
+| --- | --- |
+| Email | Any email to the address routed to the Worker by Cloudflare Email Routing (e.g. `setmore-sync@your-domain.com`) |
+| Cron | Every 30 minutes, as a backup and to catch edited customer details |
+| HTTP | `POST https://setmore-sync.<your-subdomain>.workers.dev/run` with the sync token |
+
+Setmore can't send booking notifications to an extra address, so forward them
+with a Gmail filter: match Setmore's booking emails → **Forward it to** the
+Worker's address. Gmail first sends a confirmation email to that address; the
+Worker writes it to its logs (`gmail_forwarding_confirmation`) so you can open
+the confirmation link.
+
+- State lives in the D1 database `setmore-sync` (same schema as the CLI's
+  `state.db`). Content hashes are byte-identical to the Python version.
+- A lease lock in D1 ensures only one sync runs at a time. A trigger that
+  arrives mid-sync queues one follow-up run.
+- Logs: Cloudflare dashboard → Workers → setmore-sync → Logs, or `npm run tail`.
+
+> Once the Worker is live, don't use `setmore-sync run` from the CLI to write
+> contacts: its local `state.db` no longer sees what the Worker created, so it
+> could create duplicates. CLI `--dry-run` and `test-setmore` are still fine.
+
+### Manual run
+
+```bash
+TOKEN=$(cat ~/.setmore-sync/worker_sync_token)
+URL=https://setmore-sync.<your-subdomain>.workers.dev/run
+curl -X POST "$URL?dry=1" -H "Authorization: Bearer $TOKEN"   # plan only
+curl -X POST "$URL" -H "Authorization: Bearer $TOKEN"         # sync now
+curl -X POST "$URL?full=1" -H "Authorization: Bearer $TOKEN"  # backfill all history
+```
+
+### Secrets
+
+| Secret | Source |
+| --- | --- |
+| `SETMORE_REFRESH_TOKEN` | Setmore API email |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` | `npm run push-google-token` (reads `~/.setmore-sync/google_token.json`) |
+| `SYNC_TOKEN` | Random; local copy in `~/.setmore-sync/worker_sync_token` |
+
+While the Google OAuth app is in **Testing** mode, its refresh token expires
+after 7 days. Publish the app (OAuth consent screen → **Publish app**) so it
+doesn't expire. After publishing, or whenever Google sign-in fails:
+
+```bash
+.venv/bin/setmore-sync setup-google --force
+cd worker && npm run push-google-token
+```
+
+### Deploying changes
+
+```bash
+cd worker
+npm install
+npm run typecheck
+npm run deploy
+```
+
+`worker/wrangler.jsonc` holds your account-specific D1 database ID, so it is
+git-ignored. `worker/wrangler.example.jsonc` is the committed template; keep
+the two in sync when you change triggers or vars.
+
+### First-time setup
+
+```bash
+cd worker && npm install
+npx wrangler d1 create setmore-sync           # note the database_id
+cp wrangler.example.jsonc wrangler.jsonc      # paste the database_id in
+npm run db:migrate
+npm run import-local-state                    # optional: copy the CLI's state.db rows
+npm run deploy
+npm run push-google-token                     # after setmore-sync setup-google
+npx wrangler secret put SETMORE_REFRESH_TOKEN
+openssl rand -hex 32 > ~/.setmore-sync/worker_sync_token
+printf '{"SYNC_TOKEN":"%s"}' "$(cat ~/.setmore-sync/worker_sync_token)" | npx wrangler secret bulk
+```
+
+Then, in the Cloudflare dashboard (Email → Email Routing → Routing rules), add a
+custom address that sends to the Worker `setmore-sync`.
+
+## Schedule it locally (launchd)
+
+Only needed if you're not using the Cloudflare Worker.
 Edit `launchd/com.setmore-sync.plist.example` to your paths, then:
 
 ```bash

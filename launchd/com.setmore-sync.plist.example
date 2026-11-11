@@ -7,9 +7,9 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/YOUR_USERNAME/Sources/bysun/workflow/setmore-sync/.venv/bin/setmore-sync</string>
+        <string>/path/to/setmore-sync/.venv/bin/setmore-sync</string>
         <string>--config</string>
-        <string>/Users/YOUR_USERNAME/Sources/bysun/workflow/setmore-sync/config.yaml</string>
+        <string>/path/to/setmore-sync/config.yaml</string>
         <string>run</string>
     </array>
 
@@ -20,7 +20,7 @@
     </dict>
 
     <key>WorkingDirectory</key>
-    <string>/Users/YOUR_USERNAME/Sources/bysun/workflow/setmore-sync</string>
+    <string>/path/to/setmore-sync</string>
 
     <key>StartInterval</key>
     <integer>1800</integer>

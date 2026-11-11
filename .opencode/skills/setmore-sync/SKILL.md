@@ -7,7 +7,37 @@ description: Use when working on, debugging, or extending the setmore-sync proje
 
 Local Python app syncing **Setmore customers → Google Contacts** using the official
 Setmore developer API and Google People API. Replaces an old Zapier flow; talks
-only to Setmore and Google directly. Runs via CLI, scheduled with `launchd`.
+only to Setmore and Google directly. Deployed as a **Cloudflare Worker**
+(`worker/`, TypeScript port), with the Python CLI kept for Google sign-in,
+dry-runs and debugging.
+
+## Cloudflare Worker (`worker/`)
+
+- Worker `setmore-sync`, D1 database `setmore-sync`
+  (binding `DB`, same `contacts`/`meta` schema as the CLI plus a `locks` table).
+  `worker/wrangler.jsonc` (real database ID) is git-ignored; edit
+  `worker/wrangler.example.jsonc` alongside it. This repo is public: never
+  commit account IDs, domains, Worker URLs, tokens or customer data.
+- Triggers: email to an Email Routing address on the owner's domain (Setmore
+  booking emails forwarded by a Gmail filter), cron `*/30 * * * *`, and
+  `POST /run` (Bearer `SYNC_TOKEN`; `?dry=1`, `?full=1`). Gmail forwarding
+  confirmations (`forwarding-noreply@google.com`) are logged, not synced.
+- `src/model.ts` must keep hashes **byte-identical** to `model.py`
+  (`json.dumps(sort_keys=True)` separators + `ensure_ascii` escaping, Python
+  `str()`/truthiness for custom-field values). If either side changes, change
+  both and re-verify against real data before deploying, or every contact will
+  be rewritten.
+- One sync at a time: D1 lease lock (`locks` table, 5 min TTL); a trigger that
+  arrives mid-sync sets `meta.rerun_requested` and the running sync reruns once.
+- After creating contacts, D1 state is written **before** group membership, so
+  a failure can't lead to duplicates on retry.
+- Secrets: `SETMORE_REFRESH_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+  `GOOGLE_REFRESH_TOKEN`, `SYNC_TOKEN`. `npm run push-google-token` copies the
+  Google ones from `~/.setmore-sync/google_token.json`.
+- Commands (in `worker/`): `npm run typecheck`, `npm run deploy`, `npm run tail`,
+  `npm run db:migrate`, `npm run import-local-state`.
+- Don't run the CLI's `run` (write mode) once the Worker is live: its local
+  `state.db` diverges from D1 and can create duplicates.
 
 ## Architecture
 
